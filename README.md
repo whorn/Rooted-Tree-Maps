@@ -32,7 +32,7 @@ The string "01020" corresponds to the forest:
 
    ●
    
- /   \
+ /    \
  
 ●      ●
 
