@@ -23,11 +23,17 @@ The string "0102" represents the forest
 While "00" represents
 
 ●
+
 |
+
 ●
 
 The string "01020" corresponds to the forest:
 
    ●
+   
  /   \
-●     ●
+ 
+●      ●
+
+
