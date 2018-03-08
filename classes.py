@@ -217,6 +217,13 @@ class Word:
             if self.q[i] == 0:
                 self.word.pop(i)
                 self.q.pop(i)
+        if (self.q[0] == 0):
+            if len(self.q) > 1:
+                self.word.pop(0)
+                self.q.pop(0)
+            else:
+                self.word[0] = ""
+
 
     # Right concatenation with a string, the letter variable.
     #  The coefficient for this letter is by default 1, but can be changed.
@@ -244,6 +251,8 @@ class Word:
     # Returns a Word object as a string.
     # The string is an expression with combinations of coefficients, x's and y's.
     def toString(self):
+        if len(self.q) == 0:
+            return ""
         self.simplify()
         string = ""
         for i in range(len(self.q)):
@@ -277,25 +286,27 @@ class Word:
         result.word = self.word + other.word
         result.q = self.q + other.q
         return result
-    
+
     # Subtracts two Word objects from each other, returns a new Word object.
     def __sub__(self, other):
         result = Word()
         result.word = self.word + other.word
         result.q = self.q + [-q for q in other.q]
         return result
-    
+
     # Multiplies a word by a coefficient (float) from the left.
     def __rmul__(self, other):
+        result = Word([], [])
         if other is int or float:
-            self.q = [other*q for q in self.q]
-        return self
-    
+            result.q = [other*q for q in self.q]
+            result.word = [string for string in self.word]
+        return result
+
     # Adds another Word object to the current Word object.
     def __iadd__(self, other):
         self.word = self.word + other.word
         self.q = self.q + other.q
-    
+
     # Multiplies two Word objects, returns a new Word object.
     def __mul__(self, other):
         result = Word([],[])
@@ -305,7 +316,57 @@ class Word:
                 result.word.append(self.word[i]+other.word[j])
         return result
 
-# Translates a string of 0's, 1's and 2's to a forest object. Returns the forest. 
+    # Exponentiation of a word
+    def __pow__(self, power, modulo=None):
+        result = self
+        if power == 0:
+            return Word()
+        elif power == 1:
+            return result
+        elif power%2 == 0:
+            return (result*result)**(power/2)
+        else:
+            return result*(result**(power-1))
+
+    # Turns a word into a string with the toString function. Might remove toString() entirely later.
+    def __str__(self):
+        return self.toString()
+
+    # Reverses order of the word and changes x to y and y to x.
+    def tau(self):
+        result = Word([], [])
+        for term in range(len(self.word)):
+            result.q.append(self.q[term])
+            result.word.append("")
+            for letter in self.word[term]:
+                if letter == "x":
+                    result.word[term] = "y" + result.word[term]
+                else:
+                    result.word[term] = "x" + result.word[term]
+        return result
+
+    #### DERIVATIONS: Various derivations on words.
+
+    def delta(self,n):
+        dx = Word([1],["x"])*(Word([1,1],["x","y"])**(n-1))*Word([1],["y"])
+        map = {"x":dx,"y":-1*dx}
+        return derivate(self, map)
+
+    def DELTA(self,n):
+        dx = Word([0], [""])
+        dy = Word([1], [("x" * n) + "y"])
+        map = {"x": dx, "y": dy}
+        return derivate(self, map)
+
+    def DELTA_BAR(self,n):
+        dx = Word([1],["x"+("y"*n)])
+        dy = Word([0],[""])
+        map = {"x": dx,"y": dy}
+        return derivate(self,map)
+
+
+
+# Translates a string of 0's, 1's and 2's to a forest object. Returns the forest.
 def forest_from_string(string):
     if len(string) == 0:
         return Forest()
@@ -327,7 +388,7 @@ def forest_from_string(string):
                 level[current_level].merge(level[current_level + 1])
         return f
 
-# Translates a string of x's and y's into a zeta value. 
+# Translates a string of x's and y's into a zeta value.
 def string_to_z(string):
     counter = 0
     result = "z("
@@ -340,3 +401,30 @@ def string_to_z(string):
             counter += 1
     result = result[:-1] +")"
     return result
+
+# Derivates a word with x's and y's with respect to Leibniz' rule. letter_map is the map for x and y.
+def derivate(input_word,letter_map):
+    result = Word([],[])
+    input_word.simplify()
+    for term in range(len(input_word.word)):
+        if len(input_word.word[term]) == 1:
+            result = result + (letter_map[input_word.word[term]])
+
+        else:
+            for letter in range(0, len(input_word.word[term])):
+                left_hand_side = Word([1], [input_word.word[term][:letter]])
+                right_hand_side = Word([1], [input_word.word[term][letter + 1:]])
+                du = letter_map[input_word.word[term][letter]]
+                if letter == 0:
+                    result = result + (du * right_hand_side)
+                elif letter == len(input_word.word[term]) - 1:
+                    result = result + (left_hand_side * du)
+                else:
+                    result = result + (left_hand_side * du * right_hand_side)
+
+    return result
+
+# Calculates the lie-bracket  [DELTA_BAR,DELTA](word)
+def d1_commutator(input_word):
+    print(input_word.DELTA(1).DELTA_BAR(1)-input_word.DELTA_BAR(1).DELTA(1))
+
