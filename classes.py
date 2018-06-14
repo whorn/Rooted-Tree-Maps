@@ -280,6 +280,27 @@ class Word:
                     negative += string_to_z(self.word[i]) + " + "
         return positive[:-3] + " = " + negative[:-3]
 
+    # Returns the word as a string.
+    # The string is an expression with z_k's
+    def toBracketNotation(self):
+        self.simplify()
+        string = ""
+        for i in range(len(self.q)):
+            if self.q[i]>0:
+                if self.q[i]!=1:
+                    string += " + " + str(self.q[i])+string_to_z(self.word[i])
+                else:
+                    string += " + " + string_to_z(self.word[i])
+            else:
+                if self.q[i] != -1:
+                    string += " - " + str(-self.q[i]) + string_to_z(self.word[i])
+                else:
+                    string += " - " +string_to_z(self.word[i])
+        if string[1] == "+":
+            return string[2:]
+        else:
+            return string
+
     # Adds two Word objects together, returns a new Word object.
     def __add__(self, other):
         result = Word()
@@ -345,6 +366,93 @@ class Word:
                     result.word[term] = "x" + result.word[term]
         return result
 
+    # Sends x to x+y and y to -y
+    def phi(self):
+        result = Word([],[])
+        for term in range(len(self.word)):
+            temp_result = Word([1],[""])
+            for letter in self.word[term]:
+                if letter == "x":
+                    temp_result = temp_result*Word([1,1],["x","y"])
+                else:
+                    temp_result = temp_result*Word([-1],["y"])
+
+            result = result + temp_result
+        return result
+    # Sends x to x and y to -(x+y), ignores the last y in the word
+    def phi_hat(self):
+        self.R_inv("y")
+        result = Word([], [])
+        for term in range(len(self.word)):
+            temp_result = Word([1], [""])
+            for letter in self.word[term]:
+                if letter == "y":
+                    temp_result = temp_result * Word([-1, -1], ["x", "y"])
+                else:
+                    temp_result = temp_result * Word([1], ["x"])
+
+            result = result + temp_result
+        result.R("y",-1) # -1 to make the sign correct. Since the iteration through the word ignores the last y.
+        return result
+
+    #### Shuffle and Harmonic Shuffle
+    def shuffle(self,other):
+        result = Word([], [])
+        for i in range(len(self.q)):
+            for j in range(len(other.q)):
+                if self.word[i] == "" or other.word[j] == "":
+                    result = result + Word([self.q[i]*other.q[j]],[self.word[i] + other.word[j]])
+                else:
+                    self_temp = Word([self.q[i]], [self.word[i]])
+                    other_temp = Word([other.q[j]], [other.word[j]])
+                    a = Word([self.q[i]],[self.word[i][0]])*Word([1],[self.word[i][1:]]).shuffle(other_temp)
+                    b = Word([other.q[j]],[other.word[j][0]])*self_temp.shuffle(Word([1],[other.word[j][1:]]))
+
+                    result = result + a + b
+        return result
+
+    def harmonic_shuffle(self,other):
+        result = Word([], [])
+        for i in range(len(self.q)):
+            for j in range(len(other.q)):
+                if self.word[i] == "" or other.word[j] == "":
+                    result = result + Word([self.q[i]*other.q[j]],[self.word[i] + other.word[j]])
+                else:
+                    self_temp = Word([self.q[i]], [self.word[i]])
+                    other_temp = Word([other.q[j]], [other.word[j]])
+
+                    #extract z_k
+                    self_zk = Word([1],[self_temp.word[0][:(self_temp.word[0].index("y")+1)]])
+                    other_zk = Word([1],[other_temp.word[0][:other_temp.word[0].index("y")+1]])
+                    total_zk = Word([1],["x"*(len(self_zk.word[0])+len(other_zk.word[0])-1)+"y"])
+                    self_reduced = Word(self_temp.q,[self_temp.word[0][(self_temp.word[0].index("y")+1):]])
+                    other_reduced = Word(other_temp.q,[other_temp.word[0][(other_temp.word[0].index("y")+1):]])
+                    a = self_zk*(self_reduced.harmonic_shuffle(other_temp))
+                    b = other_zk*(self_temp.harmonic_shuffle(other_reduced))
+                    c = total_zk*(self_reduced.harmonic_shuffle(other_reduced))
+                    result = result + a + b + c
+
+        return result
+
+    ### Other shuffle products
+    ### Shuffle and harmonic shuffle mixed with other operators.
+
+    # Tau Harmonic Shuffle Tau
+    def square_shuffle(self,other):
+        result = self.tau().harmonic_shuffle(other.tau()).tau()
+        return result
+    # Phi Harminic Shuffle Phi
+    def phi_stuffle(self,other):
+        result = self.phi().harmonic_shuffle(other.phi()).phi()
+        return result
+
+    # Phi Shuffle Phi      NOTE: Equals normal shuffle
+    def phi_shuffle(self,other):
+        result = self.phi().shuffle(other.phi()).phi()
+        return result
+
+
+
     #### DERIVATIONS: Various derivations on words.
 
     def delta(self,n):
@@ -363,7 +471,6 @@ class Word:
         dy = Word([0],[""])
         map = {"x": dx,"y": dy}
         return derivate(self,map)
-
 
 
 # Translates a string of 0's, 1's and 2's to a forest object. Returns the forest.
@@ -390,8 +497,10 @@ def forest_from_string(string):
 
 # Translates a string of x's and y's into a zeta value.
 def string_to_z(string):
+    if string == "":
+        return ""
     counter = 0
-    result = "z("
+    result = "("
 
     for letter in string:
         if letter == "y":
@@ -424,7 +533,84 @@ def derivate(input_word,letter_map):
 
     return result
 
+
+
+###
+### OTHER COMMANDS
+###
+
 # Calculates the lie-bracket  [DELTA_BAR,DELTA](word)
 def d1_commutator(input_word):
     print(input_word.DELTA(1).DELTA_BAR(1)-input_word.DELTA_BAR(1).DELTA(1))
+
+
+# Creates words that read the same backwards as forwards of a given length. These words are Tau-invariant.
+def generate_symmetric_words(length):
+    symmetric_words = []
+    for n in range(2**(length-1)):
+        current_word = ""
+        for b in ('{0:0'+str(2**(length-1))+'b}').format(n):
+            if b == "0":
+                current_word = "x"+current_word+"y"
+            else:
+                current_word = "y" + current_word + "x"
+        current_word = "x" + current_word + "y"
+        symmetric_words.append(current_word)
+    return symmetric_words
+
+# Returns a list of strings with all admissible words of the given length
+def generate_Words(length):
+    word_list = []
+    if length == 2:
+        return ["xy"]
+    for n in range(2**(length-2)):
+        binary = bin(n)[2:]
+        binary = "0"*(length-len(binary)-2) + binary
+        current_word = ""
+        for b in binary:
+            if b == "0":
+                current_word += "x"
+            else:
+                current_word += "y"
+        current_word = "x" + current_word + "y"
+        word_list.append(current_word)
+    return word_list
+
+# Input is a LIST of STRINGS
+# Generates tables for easy comparison of results
+def generate_table(strings):
+    z2 = Word([1], ["xy"])
+    table = []
+    for word in strings:
+        w = Word([1],[word])
+        delta = w.delta(2).toBracketNotation()
+        harmonic_product = w.harmonic_shuffle(z2).toBracketNotation()
+        square_product = w.square_shuffle(z2).toBracketNotation()
+        D2_bar = w.DELTA_BAR(2).toBracketNotation()
+        D2 = w.DELTA(2).toBracketNotation()
+        D1BARD1 = w.DELTA(1).DELTA_BAR(1).toBracketNotation()
+        D1D1BAR = w.DELTA_BAR(1).DELTA(1).toBracketNotation()
+        commutator = (w.DELTA(1).DELTA_BAR(1) - w.DELTA_BAR(1).DELTA(1)).toBracketNotation()
+        output = word + "\t" + delta +"\t" + harmonic_product + "\t" + square_product + "\t" + D2_bar + "\t" + D2 + "\t" + D1BARD1 + "\t" + D1D1BAR + "\t" + commutator
+        table.append(output)
+    for i in table:
+        print(i)
+
+# Input is a LIST of STRINGS
+# Generates tables for easy comparison of results
+def generate_table3(strings):
+    z3 = Word([1], ["xxy"])
+    table = []
+    for word in strings:
+        w = Word([1],[word])
+        delta = w.delta(3).toBracketNotation()
+        harmonic_product = w.harmonic_shuffle(z3).toBracketNotation()
+        square_product = w.square_shuffle(z3).toBracketNotation()
+        D3_bar = w.DELTA_BAR(3).toBracketNotation()
+        D3 = w.DELTA(3).toBracketNotation()
+        output = word + "\t" + delta +"\t" + harmonic_product + "\t" + square_product + "\t" + D3_bar + "\t" + D3# + "\t" + D1BARD1 + "\t" + D1D1BAR + "\t" + commutator
+        table.append(output)
+    for i in table:
+        print(i)
+
 
