@@ -56,15 +56,19 @@ class Tree:
 
                 else:
                     temp_result = self.coproduct()(Word([input_word.q[i]],[input_word.word[i]]))
-                    result.q += temp_result.q
-                    result.word += temp_result.word
+                    result = result + temp_result
             else:
-                temp_forest = Forest(self.leaves)
-                temp_result = temp_forest(Word([input_word.q[i]],[input_word.word[i]]))
-                temp_result.R_star()
-                result.q += temp_result.q
-                result.word += temp_result.word
+                if len(input_word.word[i]) == 1:
+                    temp_forest = Forest(self.leaves)
+                    temp_result = temp_forest(Word([input_word.q[i]],[input_word.word[i]]))
+                    temp_result.R_star()
+                else:
+                    temp_result = self.coproduct()(Word([input_word.q[i]],[input_word.word[i]]))
+                result = result + temp_result
         return result
+
+    def __str__(self):
+        return self.toString()
 
 # This class is a collection of trees, a forest with no trees is the empty forest.
 class Forest:
@@ -119,15 +123,20 @@ class Forest:
                     temp_result = self.trees[0](word)
                     for i in range(1,len(self.trees)):
                         temp_result = self.trees[i](temp_result)
-                    result.q += temp_result.q
-                    result.word += temp_result.word
+                    result = result + temp_result
             else:
                 temp_result = self.trees[0].coproduct()(Word([word.q[i]],[word.word[i]]))
                 for j in range(1, len(self.trees)):
                     temp_result = self.trees[j].coproduct()(temp_result)
-                result.q += temp_result.q
-                result.word += temp_result.word
+                result = result + temp_result
         return result
+
+    def __str__(self):
+        return self.toString()
+
+    def calculate_w(self):
+        w = self(Word([1],["y"]))
+        return w.chi_x_inv()
 
 # The Coproduct class is the tensor product of the space of rooted forests with itself.
 # It consists of a list of coefficients for the tensors and left and right hand sides for the tensors.
@@ -182,8 +191,7 @@ class Coproduct:
                 l = word.q[j]*self.l[i](str_word)
                 r = self.r[i](str_letter)
                 new_word = l*r
-                result.word += new_word.word
-                result.q += new_word.q
+                result = result + new_word
             result.simplify()
         return result
 
@@ -370,7 +378,7 @@ class Word:
     def phi(self):
         result = Word([],[])
         for term in range(len(self.word)):
-            temp_result = Word([1],[""])
+            temp_result = Word([self.q[term]],[""])
             for letter in self.word[term]:
                 if letter == "x":
                     temp_result = temp_result*Word([1,1],["x","y"])
@@ -380,20 +388,29 @@ class Word:
             result = result + temp_result
         return result
     # Sends x to x and y to -(x+y), ignores the last y in the word
-    def phi_hat(self):
-        self.R_inv("y")
+    def eta(self):
         result = Word([], [])
         for term in range(len(self.word)):
-            temp_result = Word([1], [""])
-            for letter in self.word[term]:
+            temp_result = Word([self.q[term]], [""])
+            for i in range(len(self.word[term])-1):
+                letter = self.word[term][i]
                 if letter == "y":
                     temp_result = temp_result * Word([-1, -1], ["x", "y"])
                 else:
                     temp_result = temp_result * Word([1], ["x"])
 
             result = result + temp_result
+
         result.R("y",-1) # -1 to make the sign correct. Since the iteration through the word ignores the last y.
         return result
+
+    def chi_x(self):
+        return self.phi().tau()*Word([1],"y")
+
+    def chi_x_inv(self):
+        result = 1*self
+        result.R_inv("y")
+        return result.tau().phi()
 
     #### Shuffle and Harmonic Shuffle
     def shuffle(self,other):
