@@ -412,6 +412,9 @@ class Word:
         result.R_inv("y")
         return result.tau().phi()
 
+    def bootleg_dual_product(self,rhs):
+        return self.chi_x_inv().harmonic_shuffle(rhs).chi_x() + self.harmonic_shuffle(rhs)
+
     #### Shuffle and Harmonic Shuffle
     def shuffle(self,other):
         result = Word([], [])
@@ -435,8 +438,15 @@ class Word:
                 if self.word[i] == "" or other.word[j] == "":
                     result = result + Word([self.q[i]*other.q[j]],[self.word[i] + other.word[j]])
                 else:
-                    self_temp = Word([self.q[i]], [self.word[i]])
-                    other_temp = Word([other.q[j]], [other.word[j]])
+                    k = len(self.word[i])
+                    l = len(other.word[j])
+                    while self.word[i][k-1]=="x":
+                        k -= 1
+                    while other.word[j][l-1]=="x":
+                        l -= 1
+
+                    self_temp = Word([self.q[i]], [self.word[i][:k]])
+                    other_temp = Word([other.q[j]], [other.word[j][:l]])
 
                     #extract z_k
                     self_zk = Word([1],[self_temp.word[0][:(self_temp.word[0].index("y")+1)]])
@@ -447,7 +457,7 @@ class Word:
                     a = self_zk*(self_reduced.harmonic_shuffle(other_temp))
                     b = other_zk*(self_temp.harmonic_shuffle(other_reduced))
                     c = total_zk*(self_reduced.harmonic_shuffle(other_reduced))
-                    result = result + a + b + c
+                    result = result + (a + b + c)*Word([1],["x"*(len(self.word[i])-k+len(other.word[j])-l)])
 
         return result
 
@@ -560,6 +570,9 @@ def derivate(input_word,letter_map):
 def d1_commutator(input_word):
     print(input_word.DELTA(1).DELTA_BAR(1)-input_word.DELTA_BAR(1).DELTA(1))
 
+def Hn_commutator(input_word,n):
+    zn = Word([1],["x"*(n-1)+"y"])
+    print(input_word.harmonic_shuffle(zn).tau().harmonic_shuffle(zn).tau()-input_word.tau().harmonic_shuffle(zn).tau().harmonic_shuffle(zn))
 
 # Creates words that read the same backwards as forwards of a given length. These words are Tau-invariant.
 def generate_symmetric_words(length):
