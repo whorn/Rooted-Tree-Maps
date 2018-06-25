@@ -438,26 +438,29 @@ class Word:
                 if self.word[i] == "" or other.word[j] == "":
                     result = result + Word([self.q[i]*other.q[j]],[self.word[i] + other.word[j]])
                 else:
-                    k = len(self.word[i])
-                    l = len(other.word[j])
-                    while self.word[i][k-1]=="x":
-                        k -= 1
-                    while other.word[j][l-1]=="x":
-                        l -= 1
-
-                    self_temp = Word([self.q[i]], [self.word[i][:k]])
-                    other_temp = Word([other.q[j]], [other.word[j][:l]])
-
-                    #extract z_k
-                    self_zk = Word([1],[self_temp.word[0][:(self_temp.word[0].index("y")+1)]])
-                    other_zk = Word([1],[other_temp.word[0][:other_temp.word[0].index("y")+1]])
-                    total_zk = Word([1],["x"*(len(self_zk.word[0])+len(other_zk.word[0])-1)+"y"])
-                    self_reduced = Word(self_temp.q,[self_temp.word[0][(self_temp.word[0].index("y")+1):]])
-                    other_reduced = Word(other_temp.q,[other_temp.word[0][(other_temp.word[0].index("y")+1):]])
-                    a = self_zk*(self_reduced.harmonic_shuffle(other_temp))
-                    b = other_zk*(self_temp.harmonic_shuffle(other_reduced))
-                    c = total_zk*(self_reduced.harmonic_shuffle(other_reduced))
-                    result = result + (a + b + c)*Word([1],["x"*(len(self.word[i])-k+len(other.word[j])-l)])
+                    if self.word[i][-1] == "x" or other.word[j][-1] == "x":
+                        k = len(self.word[i])
+                        l = len(other.word[j])
+                        while self.word[i][k-1]=="x" and k>0:
+                            k -= 1
+                        while other.word[j][l-1]=="x" and l>0:
+                            l -= 1
+                        self_temp = Word([self.q[i]], [self.word[i][:k]])
+                        other_temp = Word([other.q[j]], [other.word[j][:l]])
+                        result = result + self_temp.harmonic_shuffle(other_temp)*Word([1],["x"*(len(self.word[i])-k+len(other.word[j])-l)])
+                    else:
+                        self_temp = Word([self.q[i]], [self.word[i]])
+                        other_temp = Word([other.q[j]], [other.word[j]])
+                        #extract z_k
+                        self_zk = Word([1],[self_temp.word[0][:(self_temp.word[0].index("y")+1)]])
+                        other_zk = Word([1],[other_temp.word[0][:other_temp.word[0].index("y")+1]])
+                        total_zk = Word([1],["x"*(len(self_zk.word[0])+len(other_zk.word[0])-1)+"y"])
+                        self_reduced = Word(self_temp.q,[self_temp.word[0][(self_temp.word[0].index("y")+1):]])
+                        other_reduced = Word(other_temp.q,[other_temp.word[0][(other_temp.word[0].index("y")+1):]])
+                        a = self_zk*(self_reduced.harmonic_shuffle(other_temp))
+                        b = other_zk*(self_temp.harmonic_shuffle(other_reduced))
+                        c = total_zk*(self_reduced.harmonic_shuffle(other_reduced))
+                        result = result + a + b + c
 
         return result
 
@@ -606,6 +609,14 @@ def generate_Words(length):
         word_list.append(current_word)
     return word_list
 
+def generate_Words_Hy(length):
+    admissable = generate_Words(length)
+    word_list = []
+    for word in admissable:
+        word_list.append(word)
+        word_list.append("y"+word[1:])
+    return word_list
+
 # Input is a LIST of STRINGS
 # Generates tables for easy comparison of results
 def generate_table(strings):
@@ -643,4 +654,14 @@ def generate_table3(strings):
     for i in table:
         print(i)
 
-
+def generate_Fn(n):
+    F = [forest_from_string("0")]
+    for i in range(n-1):
+        new_F = []
+        for forest in F:
+            new_F.append(forest*forest_from_string("0"))
+            grafted = forest_from_string(forest.toString())
+            grafted.graft()
+            new_F.append(grafted)
+        F = new_F
+    return F
