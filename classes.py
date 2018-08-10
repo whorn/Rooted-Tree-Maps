@@ -60,6 +60,7 @@ class Tree:
             else:
                 if len(input_word.word[i]) == 1:
                     temp_forest = Forest(self.leaves)
+
                     temp_result = temp_forest(Word([input_word.q[i]],[input_word.word[i]]))
                     temp_result.R_star()
                 else:
@@ -195,6 +196,9 @@ class Coproduct:
             result.simplify()
         return result
 
+    def __str__(self):
+        return self.toString()
+
     # Simplifies the Coproduct object i.e x + x = 2x
     def simplify(self):
         for i in range(len(self.q)):
@@ -314,6 +318,7 @@ class Word:
         result = Word()
         result.word = self.word + other.word
         result.q = self.q + other.q
+        result.simplify()
         return result
 
     # Subtracts two Word objects from each other, returns a new Word object.
@@ -321,6 +326,7 @@ class Word:
         result = Word()
         result.word = self.word + other.word
         result.q = self.q + [-q for q in other.q]
+        result.simplify()
         return result
 
     # Multiplies a word by a coefficient (float) from the left.
@@ -329,12 +335,14 @@ class Word:
         if other is int or float:
             result.q = [other*q for q in self.q]
             result.word = [string for string in self.word]
+        result.simplify()
         return result
 
     # Adds another Word object to the current Word object.
     def __iadd__(self, other):
         self.word = self.word + other.word
         self.q = self.q + other.q
+        self.simplify()
 
     # Multiplies two Word objects, returns a new Word object.
     def __mul__(self, other):
@@ -343,6 +351,7 @@ class Word:
             for j in range(len(other.q)):
                 result.q.append(self.q[i]*other.q[j])
                 result.word.append(self.word[i]+other.word[j])
+        self.simplify()
         return result
 
     # Exponentiation of a word
@@ -466,6 +475,19 @@ class Word:
 
     ### Other shuffle products
     ### Shuffle and harmonic shuffle mixed with other operators.
+    def o_star(self,degree):
+        if degree == 1:
+            return Word([1],["x"])*self
+        else:
+            result = Word([],[])
+            for i in range(len(self.q)):
+                self_temp = Word([self.q[i]], [self.word[i]])
+                # extract z_k
+                self_zk = Word([1], [self_temp.word[0][:(self_temp.word[0].index("y") + 1)]])
+                #total_zk = Word([1], ["x" * (len(self_zk.word[0]) + len(other_zk.word[0]) - 1) + "y"])
+                self_reduced = Word(self_temp.q, [self_temp.word[0][(self_temp.word[0].index("y") + 1):]])
+                result = result + self_zk * (self_reduced.harmonic_shuffle(Word([1], ["y" * (degree - 1)])))
+        return Word([1],["x"])*result
 
     # Tau Harmonic Shuffle Tau
     def square_shuffle(self,other):
@@ -481,7 +503,9 @@ class Word:
         result = self.phi().shuffle(other.phi()).phi()
         return result
 
-
+    def fancy_shuffle(self,other):
+        result = self.harmonic_shuffle(other.tau()).tau()-self.tau().harmonic_shuffle(other)
+        return result
 
     #### DERIVATIONS: Various derivations on words.
 
@@ -596,7 +620,7 @@ def generate_Words(length):
     word_list = []
     if length == 2:
         return ["xy"]
-    for n in range(2**(length-2)):
+    for n in range(int(2**(length-2))):
         binary = bin(n)[2:]
         binary = "0"*(length-len(binary)-2) + binary
         current_word = ""
@@ -610,9 +634,11 @@ def generate_Words(length):
     return word_list
 
 def generate_Words_Hy(length):
-    admissable = generate_Words(length)
+    admissible = generate_Words(length)
     word_list = []
-    for word in admissable:
+    if length == 1:
+        return ["y"]
+    for word in admissible:
         word_list.append(word)
         word_list.append("y"+word[1:])
     return word_list
